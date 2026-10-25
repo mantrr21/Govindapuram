@@ -194,7 +194,9 @@
     });
   }
 
-  // Load voters from IndexedDB or fall back to initial hardcoded list
+
+
+    // Load voters from IndexedDB or fall back to initial hardcoded list
   function loadVotersFromDB(callback) {
     const transaction = db.transaction(["voters"], "readonly");
     const store = transaction.objectStore("voters");
@@ -204,18 +206,26 @@
       const storedVoters = event.target.result;
       if (storedVoters && storedVoters.length > 0) {
         voters = storedVoters;
+        updateDashboardCounts(); // Ensure counts update when loading from DB
+        if (callback) callback(); // Now safely resolve the login promise after loading
       } else {
         // First run: populate database with initial hardcoded list
         voters = initialVoters.map(v => ({ ...v, status: "Unreviewed" }));
         saveAllVotersToDB(voters, () => {
+          updateDashboardCounts();
           if (callback) callback();
         });
-        return;
       }
-      if (callback) callback();
+    };
+
+    request.onerror = (event) => {
+      // Fallback in case of any read error so login doesn't freeze
+      voters = initialVoters.map(v => ({ ...v, status: "Unreviewed" }));
       updateDashboardCounts();
+      if (callback) callback();
     };
   }
+  
 
   function saveAllVotersToDB(dataArray, callback) {
     const transaction = db.transaction(["voters"], "readwrite");
